@@ -198,7 +198,7 @@ class Connection(Thread):
         """
         logger.debug("Connection received from %s:%s" % self.addr)
 
-        self.socket.settimeout(50)
+        self.socket.settimeout(5)
         try:
             msg = self.socket.recv(1024)
         except socket.timeout:

@@ -177,27 +177,5 @@ class TestConnection(TestCase):
         self.assertEqual(socket.close.call_count, 1)
 
 
-
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
