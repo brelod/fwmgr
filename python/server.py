@@ -11,7 +11,7 @@ from ipaddress import ip_address
 from collections import namedtuple
 import socket
 from socket import AF_INET, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 # Error codes
@@ -131,7 +131,7 @@ class Runner:
     def validate(self, method: str, addr: str) -> None:
         """
         Validate whether the specified method is available in the class and whether the address can be used as a valid
-        IP address in iptables commands. 
+        IP address in iptables commands.
 
         Raises ValidationError exception on any error
         """
@@ -237,7 +237,7 @@ class Server:
         """
         self.host = host
         self.port = port
-        self.socket = None
+        self.socket: Optional[socket.socket] = None
 
     def setup(self) -> None:
         """
@@ -254,6 +254,8 @@ class Server:
         """
         Start listening for incomming connections and a threaded connection manager for every client
         """
+        assert self.socket is not None, "Socket was not initialized"
+
         logger.info("Listening for new connections")
         while True:
             try:
@@ -269,6 +271,7 @@ class Server:
         """
         Close the socket of the server
         """
+        assert self.socket is not None, "Socket was not initialized"
         self.socket.close()
         logger.info("Server has been stopped")
 
@@ -279,7 +282,7 @@ class Server:
         self.setup()
         self.listen()
         self.teardown()
-        
+
 
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
