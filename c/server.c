@@ -9,24 +9,13 @@
 
 #include <signal.h>
 
-#include "logging.c"
+#include "logging.h"
+#include "server.h"
+#include "connection.h"
 
 
 static int server_socket;
 
-
-
-void connection_handle(int connection, struct sockaddr_in addr)
-{
-    char ip[40];
-    unsigned short port;
-
-    if (inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)) == NULL) {
-        log_error("Failed to parse ip address: %s", strerror(errno));
-    }
-    port = htons(addr.sin_port);
-    log_debug("Connection from %s:%d", ip, port);
-}
 
 int server_setup(const char *ip, unsigned short port)
 {
@@ -56,6 +45,7 @@ int server_setup(const char *ip, unsigned short port)
     }
 
     log_info("Server has started");
+    return 0;
 }
 
 int server_listen()
@@ -91,6 +81,8 @@ void interrupt_handler(int sig)
     signal(sig, SIG_IGN);
     log_info("Stopping server because of KeyboardInterrupt");
     server_teardown();
+    signal(SIGINT, SIG_DFL);
+    raise(sig);
 }
 
 int server_run(const char *addr, unsigned short port)
@@ -105,14 +97,3 @@ int server_run(const char *addr, unsigned short port)
     return 0;
 }
 
-int main(int argc, char **argv)
-{
-    if (argc > 1 && (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug") == 0))
-        set_loglevel(DEBUG);
-    else
-        set_loglevel(INFO);
-
-
-    server_run("localhost", 5555);
-    return 0;
-}

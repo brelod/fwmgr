@@ -2,9 +2,10 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "logging.h"
 
 
-enum loglevel {DEBUG, INFO, WARNING, ERROR};
+
 static char *loglevel_names[] = {
     "DEBUG",
     "INFO",
@@ -23,10 +24,6 @@ static struct config config = {
     1,
 };
 
-void set_loglevel(enum loglevel level)
-{
-    config.level = level;
-}
 
 void _log(enum loglevel level, const char *fmt, va_list args)
 {
@@ -42,6 +39,11 @@ void _log(enum loglevel level, const char *fmt, va_list args)
     }
 }
 
+void set_loglevel(enum loglevel level)
+{
+    config.level = level;
+}
+
 void log_debug(const char *fmt, ...)
 {
     va_list args;
@@ -55,6 +57,14 @@ void log_info(const char *fmt, ...)
     va_list args;
     va_start(args, fmt);
     _log(INFO, fmt, args);
+    va_end(args);
+}
+
+void log_warning(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    _log(WARNING, fmt, args);
     va_end(args);
 }
 
