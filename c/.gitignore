@@ -1,3 +1,4 @@
 exe
+a.out
 *.o
-
+.gdb_history
