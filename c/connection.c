@@ -11,7 +11,6 @@
 #include "connection.h"
 #include "runner.h"
 
-
 void connection_teardown(int connection, const char *ip, unsigned short port);
 
 
@@ -22,10 +21,12 @@ void connection_handle(int connection, struct sockaddr_in addr)
     char response[1024];
     unsigned short port;
     struct timeval tv = {5, 0};
+    struct request request;
 
 
     memset(ip, 0, sizeof(ip));
     memset(msg, 0, sizeof(msg));
+    memset(request, 0, sizeof(request));
     memset(response, 0, sizeof(msg));
 
     if (inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)) == NULL) {
@@ -45,8 +46,12 @@ void connection_handle(int connection, struct sockaddr_in addr)
         return;
     }
 
-    log_debug("Request: %s", msg);
-    runner_process(msg, response);
+    log_debug("Request: \n%s", msg);
+
+    unpack(msg, &request);
+    runner_execute(request, &response);
+    pack(&text, response);
+
 
     if (send(connection, response, strlen(response), 0) < 0) {
         log_error("Failed to send response: %s", strerror(errno));

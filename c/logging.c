@@ -39,7 +39,7 @@ void _log(enum loglevel level, const char *fmt, va_list args)
     }
 }
 
-void set_loglevel(enum loglevel level)
+int log_level(enum loglevel level)
 {
     config.level = level;
 }

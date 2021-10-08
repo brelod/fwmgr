@@ -1,16 +1,20 @@
 #include <string.h>
+#include <stdio.h>
+
 
 
 int runner_process(const char *msg, char *response)
 {
-    char *line, *field;
+    char *copy, *line, *key, *value;
 
-    line = strtok(msg, "\n");
-    while (line != NULL) {
+    copy = strdup(msg);
+
+    while ((line = strtok(copy, "\n")) != NULL) {
         key = strtok(line, ":");
         value = strtok(line, ":");
+        printf("----%s: %s----\n", key, value);
     }
 
-    strncpy(response, "hello dolly", 20);
+    strncpy(response, "<response template>", 100);
     return 0;
 }
