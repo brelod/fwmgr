@@ -3,15 +3,13 @@
 #include <stdlib.h>
 
 #include "netpack.h"
-
-
+#include "logging.h"
 
 
 #define DELIM_LINE "\r\n"
 #define DELIM_DICT ":"
 #define chr2num(chr) (uint8_t)(chr) & 0xf
 #define num2chr(num) (char)(num) | 0x30
-
 
 
 int parse_request(const char *text, struct request *request)

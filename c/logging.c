@@ -1,12 +1,13 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "logging.h"
 
 
 
-static char *loglevel_names[] = {
+static char *log_level_names[] = {
     "DEBUG",
     "INFO",
     "WARNING",
@@ -14,9 +15,8 @@ static char *loglevel_names[] = {
 };
 
 struct config {
-    enum loglevel level;
-    char format[512];
-    int fd;
+    enum log_level level;
+    int prefix;
 };
 
 static struct config config = {
@@ -24,24 +24,29 @@ static struct config config = {
     1,
 };
 
-
-void _log(enum loglevel level, const char *fmt, va_list args)
+void _log(enum log_level level, const char *fmt, va_list args)
 {
-    time_t t = time(NULL); 
+    char prefix[1024];
     char timestamp[512];
-    char prefix[512];
-    char end[512];
+    time_t t = time(NULL); 
 
     if (level >= config.level) {
-        strftime(timestamp, 128, "%Y-%m-%d %H:%M:%S", localtime(&t));
-        sprintf(prefix, "%s | (threadname) | %7s | %s\n", timestamp, loglevel_names[level], fmt);
+        if (config.prefix) {
+            strftime(timestamp, 128, "%Y-%m-%d %H:%M:%S", localtime(&t));
+            sprintf(prefix, "%s | (threadname) | %7s | %s\n", timestamp, log_level_names[level], fmt);
+
+        } else {
+            snprintf(prefix, sizeof(prefix)-2, "%s\n", fmt);
+        }
+
         vprintf(prefix, args);
     }
 }
 
-int log_level(enum loglevel level)
+void log_set(enum log_level level, int prefix)
 {
     config.level = level;
+    config.prefix = prefix;
 }
 
 void log_debug(const char *fmt, ...)

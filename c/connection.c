@@ -7,27 +7,28 @@
 #include <sys/socket.h> // for socket creation
 #include <netinet/in.h> //contains constants and structures needed for internet domain addresses
 
-#include "logging.h"
-#include "connection.h"
 #include "runner.h"
+#include "logging.h"
+#include "netpack.h"
+#include "connection.h"
 
-void connection_teardown(int connection, const char *ip, unsigned short port);
+static void teardown(int sock, const char *ip, unsigned short port);
 
 
-void connection_handle(int connection, struct sockaddr_in addr)
+void con_handler(int sock, struct sockaddr_in addr)
 {
     char ip[40];
-    char msg[1024];
-    char response[1024];
     unsigned short port;
-    struct timeval tv = {5, 0};
-    struct request request;
 
+    char buffer[1024];                                                  // TODO: netpack --> BUFFER_SIZE
+    struct timeval tv = {5, 0};                                         // TODO: use preproc TIMEOUT
+    struct request request;
+    struct response response;
 
     memset(ip, 0, sizeof(ip));
-    memset(msg, 0, sizeof(msg));
-    memset(request, 0, sizeof(request));
-    memset(response, 0, sizeof(msg));
+    memset(buffer, 0, sizeof(buffer));
+    memset(&request, 0, sizeof(struct request));
+    memset(&response, 0, sizeof(struct response));
 
     if (inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)) == NULL) {
         log_error("Failed to parse ip address: %s", strerror(errno));
@@ -35,33 +36,38 @@ void connection_handle(int connection, struct sockaddr_in addr)
     port = htons(addr.sin_port);
     log_debug("Connection from %s:%d", ip, port);
 
-    setsockopt(connection, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-    if (recv(connection, msg, sizeof(msg)-1, 0) < 0) {
+    // Receive request
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    if (recv(sock, buffer, sizeof(buffer)-1, 0) < 0) {
         if (errno == EAGAIN && errno == EWOULDBLOCK) {
             log_warning("Connection timed out to %s", ip);
         } else {
             log_error("Failed to receive msg: %s", strerror(errno));
         }
-        connection_teardown(connection, ip, port);
+        teardown(sock, ip, port);
         return;
     }
 
-    log_debug("Request: \n%s", msg);
+    // Process request
+    log_debug("Request: \n%s", buffer);
+    parse_request(buffer, &request);
 
-    unpack(msg, &request);
-    runner_execute(request, &response);
-    pack(&text, response);
+    // Create response
+    memset(buffer, 0, sizeof(buffer));
+    response.code = 0;
+    strcpy(response.reason, "<teplate-reason>");
+    compose_response(buffer, response, sizeof(buffer));
 
-
-    if (send(connection, response, strlen(response), 0) < 0) {
+    // Send response
+    if (send(sock, buffer, strlen(buffer), 0) < 0) {
         log_error("Failed to send response: %s", strerror(errno));
     }
 
-    connection_teardown(connection, ip, port);
+    teardown(sock, ip, port);
 }
 
-void connection_teardown(int connection, const char *ip, unsigned short port)
+static void teardown(int sock, const char *ip, unsigned short port)
 {
-    close(connection);
+    close(sock);
     log_debug("Connection is closed to %s:%d", ip, port);
 }
