@@ -1,9 +1,5 @@
 CC=gcc
-
-COMMON_CFLAGS=-ggdb -Wall
-CLIENT_CFLAGS=$(COMMON_CFLAGS)
-SERVER_CFLAGS=$(COMMON_CFLAGS)
-
+CFLAGS=-ggdb -Wall
 LDFLAGS=-lpthread
 
 # TODO - should be configurable from here
@@ -27,46 +23,24 @@ clean:
 # ================================================================================
 # Common:
 # ================================================================================
-COMMON_OBJS=netpack.o logging.o
-
+COMMON=netpack.o logging.o
 netpack.o: netpack.c
-	$(CC) $(COMMON_CFLAGS) -c $< -o $@
-
 logging.o: logging.c
-	$(CC) $(COMMON_CFLAGS) -c $< -o $@
 
 # ================================================================================
 # Client:
 # ================================================================================
-CLIENT_OBJS=client.o $(COMMON_OBJS)
-
-client: $(CLIENT_OBJS)
-	$(CC) $(CLIENT_CFLAGS) -o $@ $(CLIENT_OBJS)
-
+client: client.o $(COMMON)
 client.o: client.c
-	$(CC) $(CLIENT_CFLAGS) -c $< -o $@
 
 # ================================================================================
 # Server:
 # ================================================================================
-SERVER_OBJS=$(COMMON_OBJS) server.o runner.o connection.o threadpool.o queue.o
-
-server: $(SERVER_OBJS)
-	$(CC) $(LDFLAGS) $(SERVER_CFLAGS) $(SERVER_OBJS) -o $@
-
+server: server.o runner.o connection.o threadpool.o queue.o $(COMMON)
 server.o: server.c connection.c logging.c
-	$(CC) $(SERVER_CFLAGS) -c $< -o $@
-
 runner.o: runner.c logging.c
-	$(CC) $(SERVER_CFLAGS) -c $< -o $@
-
 conenction.o: connection.c runner.c logging.c
-	$(CC) $(SERVER_CFLAGS) -c $< -o $@
-
 threadpool.o: threadpool.c queue.c
-	$(CC) $(SERVER_CFLAGS) -c $< -o $@
-
 queue.o: queue.c
-	$(CC) $(SERVER_CLFAGS) -c $< -o $@
 
 
