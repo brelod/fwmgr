@@ -5,51 +5,14 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "queue.c"
+#include "threadpool.h"
+#include "queue.h"
 
-
-#define WORKERS 4
-
-struct tp_job {
-    void (*function)(void *arg);
-    void *arg;
-};
-
-struct tp_worker {
-    int id;
-    pthread_t thid;
-    pthread_cond_t ready;
-    pthread_mutex_t mutex;
-    struct tp *tp;
-    struct tp_job *job;
-};
-
-struct tp_manager {
-    int id;
-    pthread_t thid;
-    pthread_cond_t th_ready;
-    pthread_mutex_t th_mutex;
-    pthread_cond_t job_ready;
-    pthread_mutex_t job_mutex;
-    struct tp *tp;
-};
-
-struct tp {
-    int size;
-    queue_t *jobs;
-    struct tp_worker *workers;
-    struct tp_manager *manager;
-};
-
-typedef struct tp tp_t;
-typedef struct tp_job tp_job_t;
-typedef struct tp_worker tp_worker_t;
-typedef struct tp_manager tp_manager_t;
 
 tp_worker_t* tp_find_worker(tp_t *tp)                   // TODO: this should be static
 {
     for (int i=0; i<tp->size; ++i)
-        if (tp->workers[i].job == NULL)
+        if (tp->workers[i].state == TP_RUNNING && tp->workers[i].job == NULL)
             return &tp->workers[i];
 
     return NULL;
@@ -62,9 +25,13 @@ void* tp_manager_run(void *arg)
     tp_t *tp = (tp_t*) arg;
     tp_manager_t *self = tp->manager;
 
+    self->state = TP_RUNNING;
     while (1) {
         // Wait for job
         while ((job = queue_get(tp->jobs)) == NULL) {
+            if (self->state == TP_STOPPED)
+                pthread_exit(0);
+
             if (pthread_mutex_lock(&self->job_mutex) != 0) {
                 printf("Failed lock mutex\n");
                 exit(1);
@@ -78,10 +45,12 @@ void* tp_manager_run(void *arg)
                 exit(1);
             }
         }
-        printf("MGR - Found job\n");
 
         // Wait for worker
         while ((worker = tp_find_worker(tp)) == NULL) {
+            if (self->state == TP_STOPPED)
+                pthread_exit(0);
+
             if (pthread_mutex_lock(&self->th_mutex) != 0) {
                 printf("Failed lock mutex\n");
                 exit(1);
@@ -95,7 +64,9 @@ void* tp_manager_run(void *arg)
                 exit(1);
             }
         }
-        printf("MGR - Found worker\n");
+
+        if (self->state != TP_RUNNING)
+            pthread_exit(0);
 
         worker->job = job;
         pthread_cond_signal(&worker->ready);
@@ -106,9 +77,8 @@ void* tp_worker_run(void *arg)
 {
     tp_worker_t *self = (tp_worker_t*) arg;
 
+    self->state = TP_RUNNING;
     while (1) {
-        printf("Waiting for new job\n");
-
         if (pthread_mutex_lock(&self->mutex) != 0) {
             printf("Failed lock mutex\n");
             exit(1);
@@ -121,16 +91,18 @@ void* tp_worker_run(void *arg)
             printf("Failed to unlock mutex");
             exit(1);
         }
-        printf("New jobs is started on Thread-%d\n", self->id);
-        if (self->job == NULL) {
-            perror("Thread was released without job");
-            exit(1);
-        }
-        else 
-            self->job->function(self->job->arg);
-    }
 
-    return NULL;
+        if (self->state != TP_RUNNING)
+            pthread_exit(0);
+
+        if (self->job != NULL) {
+            self->job->function(self->job->arg);
+            free(self->job);                                    // TODO: this should be in the caller
+            self->job = NULL;
+            pthread_cond_signal(&self->tp->manager->th_ready);
+        }
+
+    }
 }
 
 tp_t* tp_create(int workers, int jobs)
@@ -188,13 +160,10 @@ int tp_start(tp_t *tp)
         perror("Failed to init manager job_ready");
         return -1;
     }
-
     
     // Init and start worker threads
     for (id=0; id<tp->size; ++id) {
         worker = &tp->workers[id];
-        worker->id = id;
-        worker->tp = tp;
 
         if (pthread_mutex_init(&worker->mutex, NULL) != 0) {
             perror("Failed to init worker mutex");
@@ -206,42 +175,87 @@ int tp_start(tp_t *tp)
             return -1;
         }
 
-        pthread_create(&worker->thid, NULL, tp_worker_run, &worker);
+        worker->id = id;
+        worker->tp = tp;
+        worker->state = TP_NONE;
+        if (pthread_create(&worker->thid, NULL, tp_worker_run, worker) != 0) {
+            perror("Failed to create worker thread");
+            return -1;
+        }
     }
 
-    pthread_create(&tp->manager->thid, NULL, tp_manager_run, tp);
+    tp->manager->state = TP_NONE;
+    if (pthread_create(&tp->manager->thid, NULL, tp_manager_run, tp) != 0) {
+        perror("Failed to create manager thread");
+        return -1;
+    }
+
     return 0;
 }
 
-void tp_job_run(tp_t *tp, tp_job_t *job)
+int tp_job_run(tp_t *tp, tp_job_t *job)
 {
+    if (queue_put(tp->jobs, (void*)job) < 0)
+        return -1;
+
+    pthread_cond_signal(&tp->manager->job_ready);
+    return 0;
 }
 
 void tp_stop(tp_t *tp)
 {
+    // Stop workers
+    for (int i=0; i<tp->size; ++i) {
+        tp->workers[i].state = TP_STOPPED;
+        pthread_cond_signal(&tp->workers[i].ready);
+    }
+
+    // Stop manager
+    tp->manager->state = TP_STOPPED;
+    pthread_cond_signal(&tp->manager->job_ready);   // Stop waiting for job
+    pthread_cond_signal(&tp->manager->th_ready);    // Stop waiting for worker
 }
 
 void tp_destroy(tp_t *tp)
 {
+    queue_destroy(tp->jobs);
+    free(tp->workers);
+    free(tp->manager);
+    free(tp);
 }
 
-void job_function(void *arg)
-{
-    printf("Job %d\n", *((int*)arg));
-}
 
+/*
 int main()
 {
-    tp_t *tp = tp_create(4, 4);
+    tp_t *tp = tp_create(4, 20);    // 4 threads 20 queue
     tp_start(tp);
 
-    int i = 1;
-    tp_job_t job = {job_function, (void*)&i};
+    int numbers[15];
+    tp_job_t job[15];
 
-    queue_put(tp->jobs, (void*)&job);
-    pthread_cond_signal(&tp->manager->job_ready);
+    for (int i=0; i<15; ++i)
+        numbers[i] = i;
 
-    sleep(1);
+    for (int i=0; i<15; ++i) {
+        job[i].function = job_function;
+        job[i].arg = (void*)&numbers[i];
+
+        tp_job_run(tp, &job[i]);
+    }
+
+    while (! queue_isempty(tp->jobs)) {
+        printf("waiting...\n");
+        usleep(500000);
+    }
+    printf("Jobs are done; Let's have a beer!\n");
+    tp_stop(tp);
+    tp_destroy(tp);
+    printf("Threadpool destroyed\n");
+    return 0;
+
+    //pthread_exit(0);
+
     //for (int i=0; i<5; ++i) {
     //    printf("alma\n");
 
@@ -251,3 +265,4 @@ int main()
     //    usleep(200000);
     //}
 }
+*/

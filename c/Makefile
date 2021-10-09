@@ -49,7 +49,7 @@ client.o: client.c
 # ================================================================================
 # Server:
 # ================================================================================
-SERVER_OBJS=$(COMMON_OBJS) server.o runner.o connection.o
+SERVER_OBJS=$(COMMON_OBJS) server.o runner.o connection.o threadpool.o queue.o
 
 server: $(SERVER_OBJS)
 	$(CC) $(LDFLAGS) $(SERVER_CFLAGS) $(SERVER_OBJS) -o $@
@@ -62,5 +62,11 @@ runner.o: runner.c logging.c
 
 conenction.o: connection.c runner.c logging.c
 	$(CC) $(SERVER_CFLAGS) -c $< -o $@
+
+threadpool.o: threadpool.c queue.c
+	$(CC) $(SERVER_CFLAGS) -c $< -o $@
+
+queue.o: queue.c
+	$(CC) $(SERVER_CLFAGS) -c $< -o $@
 
 

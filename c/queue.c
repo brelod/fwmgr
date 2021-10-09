@@ -2,19 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-
-struct queue_node {
-    struct queue_node *next;
-    void *data;
-};
-
-struct queue_head {
-    int size;
-    struct queue_node *first;
-    struct queue_node *last;
-};
-
-typedef struct queue_head queue_t;
+#include "queue.h"
 
 
 queue_t* queue_create(int size)

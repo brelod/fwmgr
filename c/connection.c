@@ -6,6 +6,7 @@
 #include <arpa/inet.h> // defines in_addr structure
 #include <sys/socket.h> // for socket creation
 #include <netinet/in.h> //contains constants and structures needed for internet domain addresses
+#include <stdlib.h>
 
 #include "runner.h"
 #include "logging.h"
@@ -15,8 +16,10 @@
 static void teardown(int sock, const char *ip, unsigned short port);
 
 
-void con_handler(int sock, struct sockaddr_in addr)
+void con_handler(void *arg)
 {
+    struct connection *con = (struct connection*) arg;
+
     char ip[40];
     unsigned short port;
 
@@ -30,21 +33,22 @@ void con_handler(int sock, struct sockaddr_in addr)
     memset(&request, 0, sizeof(struct request));
     memset(&response, 0, sizeof(struct response));
 
-    if (inet_ntop(AF_INET, &addr.sin_addr, ip, sizeof(ip)) == NULL) {
+    if (inet_ntop(AF_INET, &con->addr.sin_addr, ip, sizeof(ip)) == NULL) {
         log_error("Failed to parse ip address: %s", strerror(errno));
     }
-    port = htons(addr.sin_port);
+    port = htons(con->addr.sin_port);
     log_debug("Connection from %s:%d", ip, port);
 
     // Receive request
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
-    if (recv(sock, buffer, sizeof(buffer)-1, 0) < 0) {
+    setsockopt(con->socket, SOL_SOCKET, SO_RCVTIMEO, (struct timeval *)&tv, sizeof(struct timeval));
+    if (recv(con->socket, buffer, sizeof(buffer)-1, 0) < 0) {
         if (errno == EAGAIN && errno == EWOULDBLOCK) {
             log_warning("Connection timed out to %s", ip);
         } else {
             log_error("Failed to receive msg: %s", strerror(errno));
         }
-        teardown(sock, ip, port);
+        teardown(con->socket, ip, port);
+        free(con);
         return;
     }
 
@@ -60,11 +64,12 @@ void con_handler(int sock, struct sockaddr_in addr)
     log_debug("Response: '%s'", buffer);
 
     // Send response
-    if (send(sock, buffer, strlen(buffer), 0) < 0) {
+    if (send(con->socket, buffer, strlen(buffer), 0) < 0) {
         log_error("Failed to send response: %s", strerror(errno));
     }
 
-    teardown(sock, ip, port);
+    teardown(con->socket, ip, port);
+    free(con);
 }
 
 static void teardown(int sock, const char *ip, unsigned short port)
