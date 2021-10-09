@@ -56,10 +56,11 @@ void con_handler(void *arg)
     log_debug("Request: '%s'", buffer);
     parse_request(buffer, &request);
 
+    // Execute subprocess
+    runner_process(request, &response);
+
     // Create response
     memset(buffer, 0, sizeof(buffer));
-    response.code = 0;
-    strcpy(response.reason, "<teplate-reason>");
     compose_response(buffer, response, sizeof(buffer));
     log_debug("Response: '%s'", buffer);
 
