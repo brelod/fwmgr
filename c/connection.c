@@ -49,7 +49,7 @@ void con_handler(int sock, struct sockaddr_in addr)
     }
 
     // Process request
-    log_debug("Request: \n%s", buffer);
+    log_debug("Request: '%s'", buffer);
     parse_request(buffer, &request);
 
     // Create response
@@ -57,6 +57,7 @@ void con_handler(int sock, struct sockaddr_in addr)
     response.code = 0;
     strcpy(response.reason, "<teplate-reason>");
     compose_response(buffer, response, sizeof(buffer));
+    log_debug("Response: '%s'", buffer);
 
     // Send response
     if (send(sock, buffer, strlen(buffer), 0) < 0) {

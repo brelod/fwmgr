@@ -95,9 +95,9 @@ int main(int argc, char **argv)
     int sock;
 
     if (argc > 1 && (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug") == 0))
-        log_set(DEBUG, 1);
+        log_set(LOG_DEBUG, 1);
     else
-        log_set(INFO, 1);
+        log_set(LOG_INFO, 1);
 
 
     signal(SIGINT, interrupt_handler);

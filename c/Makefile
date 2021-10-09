@@ -4,8 +4,11 @@ COMMON_CFLAGS=-ggdb -Wall
 CLIENT_CFLAGS=$(COMMON_CFLAGS)
 SERVER_CFLAGS=$(COMMON_CFLAGS)
 
-LDFLAGS=
+LDFLAGS=-lpthread
 
+# TODO - should be configurable from here
+# server addr, port
+# socket timeout
 
 .SILENT: help
 .PHONY: all help clean
@@ -21,9 +24,9 @@ help:
 clean:
 	rm -f *.o client server
 
-# ------------------------------
+# ================================================================================
 # Common:
-# ------------------------------
+# ================================================================================
 COMMON_OBJS=netpack.o logging.o
 
 netpack.o: netpack.c
@@ -32,9 +35,9 @@ netpack.o: netpack.c
 logging.o: logging.c
 	$(CC) $(COMMON_CFLAGS) -c $< -o $@
 
-# ------------------------------
+# ================================================================================
 # Client:
-# ------------------------------
+# ================================================================================
 CLIENT_OBJS=client.o $(COMMON_OBJS)
 
 client: $(CLIENT_OBJS)
@@ -43,13 +46,13 @@ client: $(CLIENT_OBJS)
 client.o: client.c
 	$(CC) $(CLIENT_CFLAGS) -c $< -o $@
 
-# ------------------------------
+# ================================================================================
 # Server:
-# ------------------------------
+# ================================================================================
 SERVER_OBJS=$(COMMON_OBJS) server.o runner.o connection.o
 
 server: $(SERVER_OBJS)
-	$(CC) $(SERVER_CFLAGS) $(SERVER_OBJS) -o $@
+	$(CC) $(LDFLAGS) $(SERVER_CFLAGS) $(SERVER_OBJS) -o $@
 
 server.o: server.c connection.c logging.c
 	$(CC) $(SERVER_CFLAGS) -c $< -o $@
