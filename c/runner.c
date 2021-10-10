@@ -26,8 +26,9 @@ int runner_process(struct request request, struct response *response)
     char remove[] = "-D";
     char *argv[] = {"iptables", "<-A/-D>", "FORWARD", "-s", "<ip>", "-j", "ACCEPT", 0};
 
-    log_error("-------------------------------------- Sleeping in runner_process ------------------------------------------");
-    usleep(100000);
+    // Leave this here for thread-testing purposes
+    //log_error("-------------------------------------- Sleeping in runner_process ------------------------------------------");
+    //usleep(100000);
 
     memset(cmd, 0, sizeof(cmd));
     memset(buffer, 0, sizeof(buffer));
@@ -53,18 +54,23 @@ int runner_process(struct request request, struct response *response)
     }
     if (regexec(&regex, request.ip, 0, NULL, 0) != 0) {
         log_error("Invalid ip address '%s'", request.ip);
-        return -1;
+        response->code = 1;
+        snprintf(response->reason, sizeof(response->reason), "Invalid ip: '%s'", request.ip);
+        return 1;
     }
 
     argv[4] = request.ip;
 
     // Concatenate command
     int counter = 0;
+    int size = 0;
     for (int i=0; argv[i] != NULL; ++i) {
-        if ((counter += strlen(argv[i])) > sizeof(cmd))
+        size = strlen(argv[i]);
+        if ((counter + size) > sizeof(cmd))
             break;
         strcat(cmd, argv[i]);
         strcat(cmd, " ");
+        counter += size + 1;
     }
     cmd[counter-1] = 0;
 

@@ -4,8 +4,8 @@ LDFLAGS=-lpthread
 
 HOST = "127.0.0.1"
 PORT = 5555
-THREADS = 1
-QUEUE_SIZE = 1
+THREADS = 4
+QUEUE_SIZE = 256
 
 LOGGING += netpack.o
 LOGGING += client.o

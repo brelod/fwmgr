@@ -15,8 +15,8 @@
 #include "logging.h"
 #include "netpack.h"
 
-#define LOG_LEVEL LOG_DEBUG
-#define LOG_PREFIX 1
+#define LOG_LEVEL LOG_INFO
+#define LOG_PREFIX 0
 
 #ifndef HOST
     #define HOST "127.0.0.1"
