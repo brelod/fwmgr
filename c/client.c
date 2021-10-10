@@ -96,6 +96,7 @@ int main(int argc, char **argv)
     }
     log_debug("argv[0]=%s; argv[1]=%s; argv[2]=%s", argv[0], argv[1], argv[2]);
 
+    memset(buffer, 0, sizeof(buffer));
     memset(&request, 0, sizeof(struct request));
     memset(&response, 0, sizeof(struct response));
 
@@ -121,6 +122,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    log_info("%s", response.reason);
+    log_info(response.reason);
     return 0;
 }

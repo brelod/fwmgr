@@ -11,7 +11,8 @@
 
 struct connection {
     int socket;
-    struct sockaddr_in addr;
+    char ip[40];
+    unsigned short port;
 };
 
 

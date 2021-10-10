@@ -45,12 +45,9 @@ typedef struct tp_job tp_job_t;
 typedef struct tp_worker tp_worker_t;
 typedef struct tp_manager tp_manager_t;
 
-void* tp_manager_run(void *arg);
-void* tp_worker_run(void *arg);
-
 tp_t* tp_create(int workers, int jobs);
 int tp_start(tp_t *tp);
-int tp_job_run(tp_t *tp, tp_job_t *job);
+int tp_exec(tp_t *tp, tp_job_t *job);
 void tp_stop(tp_t *tp);
 void tp_destroy(tp_t *tp);
 

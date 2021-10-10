@@ -16,7 +16,7 @@ struct queue_head {
 
 typedef struct queue_head queue_t;
 
-queue_t* queue_create(int size);
+queue_t* queue_create(size_t size);
 void queue_destroy(queue_t *q);
 bool queue_isfull(queue_t *q);
 bool queue_isempty(queue_t *q);

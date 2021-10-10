@@ -4,6 +4,6 @@
 #include "netpack.h"
 
 
-void runner_process(struct request request, struct response *response);
+int runner_process(struct request request, struct response *response);
 
 #endif

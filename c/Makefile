@@ -4,15 +4,18 @@ LDFLAGS=-lpthread
 
 HOST = "127.0.0.1"
 PORT = 5555
-THREADS = 4
-QUEUE_SIZE = 256
+THREADS = 1
+QUEUE_SIZE = 1
 
 LOGGING += netpack.o
 LOGGING += client.o
 LOGGING += server.o runner.o connection.o threadpool.o queue.o
+$(LOGGING): CFLAGS += -DLOGGING
 
 CLIENT = client
 SERVER = server
+
+# TODO: Error codes
 
 
 .SILENT: help
@@ -58,4 +61,3 @@ threadpool.o: threadpool.c queue.c
 queue.o: queue.c
 
 
-$(LOGGING): CFLAGS += -DLOGGING

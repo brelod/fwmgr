@@ -23,20 +23,23 @@ static struct config config = {LOG_INFO, 1};
 
 void _log(enum log_level level, const char *fmt, va_list args)
 {
-    char prefix[1024];
-    char timestamp[512];
+    char format[1024];
+    char timestamp[20];
     time_t t = time(NULL); 
+
+    memset(format, 0, sizeof(format));
+    memset(timestamp, 0, sizeof(timestamp));
 
     if (level >= config.level) {
         if (config.prefix) {
-            strftime(timestamp, 128, "%Y-%m-%d %H:%M:%S", localtime(&t));
-            sprintf(prefix, "%s | Thread-%lu | %7s | %s\n", timestamp, pthread_self(), log_level_names[level], fmt);
+            strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&t));
+            snprintf(format, sizeof(format), "%s | Thread-%lu | %7s | %s\n", timestamp, pthread_self(), log_level_names[level], fmt);
 
         } else {
-            snprintf(prefix, sizeof(prefix)-2, "%s\n", fmt);
+            snprintf(format, sizeof(format), "%s\n", fmt);
         }
 
-        vprintf(prefix, args);
+        vprintf(format, args);
     }
 }
 

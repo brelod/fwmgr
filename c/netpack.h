@@ -3,14 +3,18 @@
 
 typedef unsigned char uint8_t;
 
+#define REQUEST_METHOD_SIZE 256
+#define REQUEST_IP_SIZE 40
+#define RESPONSE_REASON_SIZE 1024
+
 struct request {
     char method[256];
-    char ip[256];
+    char ip[40];
 };
 
 struct response {
-    uint8_t code;
-    char reason[512];
+    int code;
+    char reason[1024];
 };
 
 int parse_request(const char *text, struct request *request);

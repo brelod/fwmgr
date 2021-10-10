@@ -20,7 +20,6 @@ int parse_request(const char *text, struct request *request)
     log_debug("Parsing request: '%s'", text);
 
     buffer = strdup(text);
-    memset(request, 0, sizeof(struct request));
 
     pair = strtok_r(buffer, DELIM_PAIR, &save_pair);
     while (pair != NULL) {
@@ -33,9 +32,9 @@ int parse_request(const char *text, struct request *request)
         }
 
         if (strcmp(key, "method") == 0) {
-            strncpy(request->method, val, sizeof(request->method));
+            snprintf(request->method, sizeof(request->method), "%s", val);
         } else if (strcmp(key, "ip") == 0) {
-            strncpy(request->ip, val, sizeof(request->ip));
+            snprintf(request->ip, sizeof(request->ip), "%s", val);
         }
 
         pair = strtok_r(NULL, DELIM_PAIR, &save_pair);
@@ -54,7 +53,6 @@ int parse_response(const char *text, struct response *response)
     log_debug("Parsing response: '%s'", text);
 
     buffer = strdup(text);
-    memset(response, 0, sizeof(struct response));
 
     pair = strtok_r(buffer, DELIM_PAIR, &save_pair);
     while (pair != NULL) {
@@ -67,9 +65,9 @@ int parse_response(const char *text, struct response *response)
         }
 
         if (strcmp(key, "code") == 0) {
-            response->code = chr2num(val[0]);
+            response->code = atoi(val);
         } else if (strcmp(key, "reason") == 0) {
-            strncpy(response->reason, val, sizeof(response->reason));
+            snprintf(response->reason, sizeof(response->reason), "%s", val);
         }
 
         pair = strtok_r(NULL, DELIM_PAIR, &save_pair);

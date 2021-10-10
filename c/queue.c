@@ -6,21 +6,27 @@
 #include "logging.h"
 
 
-queue_t* queue_create(int size)
+queue_t* queue_create(size_t size)
 {
     queue_t *q = NULL;
     struct queue_node *node = NULL;
 
+    if (size < 1) {
+        log_error("Invalid queue size: %d\n", size);
+        return NULL;
+    }
+
     q = (queue_t*) calloc (1, sizeof(queue_t));
     if (q < 0) {
         log_error("Failed to calloc() memory for queue_head");
-        exit(1);
+        return NULL;
     }
+    q->size = size;
 
     node = (struct queue_node*) calloc (1, sizeof(struct queue_node));
     if (node < 0) {
         log_error("Failed to calloc() memory for queue_node");
-        exit(1);
+        return NULL;
     }
 
     q->first = node;
@@ -30,7 +36,7 @@ queue_t* queue_create(int size)
         node->next = (struct queue_node*) calloc (1, sizeof(struct queue_node));
         if (node < 0) {
             log_error("Failed to calloc() memory for queue_node");
-            exit(1);
+            return NULL;
         }
         node = node->next;
     }
@@ -43,6 +49,13 @@ void queue_destroy(queue_t *q)
 {
     struct queue_node *last = q->first;
     struct queue_node *node = last->next;
+
+    if (q->size == 1) {
+        free(q->first);
+        free(q);
+        return;
+    }
+
     do {
         free(last);
         last = node;
@@ -90,25 +103,3 @@ void* queue_peek(queue_t *q)
 {
     return q->first->data;
 }
-
-
-
-/*
-int main()
-{
-    int a = 1;
-    char b = 'b';
-
-    queue_t *queue = queue_create(3);
-    queue_put(queue, (void*)&a);
-    queue_put(queue, (void*)&b);
-
-    int *aptr  = (int* ) queue_get(queue);
-    char *bptr = (char*) queue_get(queue);
-    printf("a=%d\n", *aptr);
-    printf("b=%c\n", *bptr);
-
-    queue_destroy(queue);
-    queue = NULL;
-}
-*/
