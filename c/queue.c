@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #include "queue.h"
+#include "logging.h"
 
 
 queue_t* queue_create(int size)
@@ -12,13 +13,13 @@ queue_t* queue_create(int size)
 
     q = (queue_t*) calloc (1, sizeof(queue_t));
     if (q < 0) {
-        perror("Failed to calloc() memory for queue_head");
+        log_error("Failed to calloc() memory for queue_head");
         exit(1);
     }
 
     node = (struct queue_node*) calloc (1, sizeof(struct queue_node));
     if (node < 0) {
-        perror("Failed to calloc() memory for queue_node");
+        log_error("Failed to calloc() memory for queue_node");
         exit(1);
     }
 
@@ -28,7 +29,7 @@ queue_t* queue_create(int size)
     for (int i=1; i<size; ++i) {
         node->next = (struct queue_node*) calloc (1, sizeof(struct queue_node));
         if (node < 0) {
-            perror("Failed to calloc() memory for queue_node");
+            log_error("Failed to calloc() memory for queue_node");
             exit(1);
         }
         node = node->next;

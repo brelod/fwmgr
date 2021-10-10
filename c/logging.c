@@ -46,7 +46,7 @@ void log_set(enum log_level level, int prefix)
     config.prefix = prefix;
 }
 
-void log_debug(const char *fmt, ...)
+void _log_debug(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -54,7 +54,7 @@ void log_debug(const char *fmt, ...)
     va_end(args);
 }
 
-void log_info(const char *fmt, ...)
+void _log_info(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -62,7 +62,7 @@ void log_info(const char *fmt, ...)
     va_end(args);
 }
 
-void log_warning(const char *fmt, ...)
+void _log_warning(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -70,7 +70,7 @@ void log_warning(const char *fmt, ...)
     va_end(args);
 }
 
-void log_error(const char *fmt, ...)
+void _log_error(const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

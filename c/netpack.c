@@ -17,6 +17,8 @@ int parse_request(const char *text, struct request *request)
     char *buffer, *pair, *key, *val;
     char *save_pair, *save_keyval;
 
+    log_debug("Parsing request: '%s'", text);
+
     buffer = strdup(text);
     memset(request, 0, sizeof(struct request));
 
@@ -25,8 +27,10 @@ int parse_request(const char *text, struct request *request)
         key = strtok_r(pair, DELIM_KEYVAL, &save_keyval);
         val = strtok_r(NULL, DELIM_KEYVAL, &save_keyval);
 
-        if (key == NULL || val == NULL)                                     // TODO: does this work ???
+        if (key == NULL || val == NULL) {
+            log_warning("Failed to parse request: key='%s', val='%s'", key, val);
             return -1;
+        }
 
         if (strcmp(key, "method") == 0) {
             strncpy(request->method, val, sizeof(request->method));
@@ -37,6 +41,7 @@ int parse_request(const char *text, struct request *request)
         pair = strtok_r(NULL, DELIM_PAIR, &save_pair);
     }
 
+    log_debug("Parsed request: method='%s', ip='%s'", request->method, request->ip);
     free(buffer);
     return 0;
 }
@@ -46,6 +51,8 @@ int parse_response(const char *text, struct response *response)
     char *buffer, *pair, *key, *val;
     char *save_pair, *save_keyval;
 
+    log_debug("Parsing response: '%s'", text);
+
     buffer = strdup(text);
     memset(response, 0, sizeof(struct response));
 
@@ -54,8 +61,10 @@ int parse_response(const char *text, struct response *response)
         key = strtok_r(pair, DELIM_KEYVAL, &save_keyval);
         val = strtok_r(NULL, DELIM_KEYVAL, &save_keyval);
 
-        if (key == NULL || val == NULL)                                     // TODO: check this
+        if (key == NULL || val == NULL) {
+            log_warning("Failed to parse response: key='%s', val='%s'", key, val);
             return -1;
+        }
 
         if (strcmp(key, "code") == 0) {
             response->code = chr2num(val[0]);
@@ -66,22 +75,35 @@ int parse_response(const char *text, struct response *response)
         pair = strtok_r(NULL, DELIM_PAIR, &save_pair);
     }
 
+    log_debug("Parsed response code='%d', reason='%s'", response->code, response->reason);
     free(buffer);
     return 0;
 }
 
 int compose_request(char *text, struct request request, size_t size)
 {
-    return snprintf(text, size, 
+    int bytes;
+    log_debug("Composing request method='%s', ip='%s'", request.method, request.ip);
+
+    bytes = snprintf(text, size, 
                     "method" DELIM_KEYVAL "%s" DELIM_PAIR
                     "ip" DELIM_KEYVAL "%s",
                     request.method, request.ip);
+
+    log_debug("Composed request: '%s'", text);
+    return bytes;
 }
 
 int compose_response(char *text, struct response response, size_t size)
 {
-    return snprintf(text, size, 
+    int bytes;
+    log_debug("Composing response code='%d', reason='%s'", response.code, response.reason);
+
+    bytes = snprintf(text, size, 
                     "code" DELIM_KEYVAL "%d" DELIM_PAIR
                     "reason" DELIM_KEYVAL "%s",
                     response.code, response.reason);
+
+    log_debug("Composed request: '%s'", text);
+    return bytes;
 }

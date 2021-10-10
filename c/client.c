@@ -15,8 +15,16 @@
 #include "logging.h"
 #include "netpack.h"
 
-#define HOST "127.0.0.1"
-#define PORT 5555
+#define LOG_LEVEL LOG_DEBUG
+#define LOG_PREFIX 1
+
+#ifndef HOST
+    #define HOST "127.0.0.1"
+#endif
+
+#ifndef PORT
+    #define PORT 5555
+#endif
 
 
 int setup(const char *ip, unsigned short port)
@@ -27,7 +35,7 @@ int setup(const char *ip, unsigned short port)
     log_debug("Connect to %s:%d", ip, port);
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         log_error("Failed to create socket: %s", strerror(errno));
-        exit(1);
+        return -1;
     }
 
     addr.sin_family = AF_INET;
@@ -36,7 +44,7 @@ int setup(const char *ip, unsigned short port)
 
     if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         log_error("Failed to connect to the server: %s", strerror(errno));
-        exit(1);
+        return -1;
     }
 
     log_debug("Connected to %s:%d", ip, port);
@@ -48,22 +56,18 @@ int communicate(int sock, char *buffer, size_t size)
     log_debug("Send buffer '%s'", buffer);
     if (send(sock, buffer, strlen(buffer), 0) < 0) {
         log_error("Failed to send request: %s", strerror(errno));
-        exit(1);
+        return -1;
     }
-    log_debug("Buffer has been successfully sent");
+    log_debug("Buffer has been sent");
 
     memset(buffer, 0, size); 
 
     log_debug("Receive buffer");
     if (recv(sock, buffer, size-1, 0) < 0) {
-        if (errno == EAGAIN && errno == EWOULDBLOCK) {
-            log_error("Connection timed out");
-        } else {
-            log_error("Failed to receive response: %s", strerror(errno));
-        }
-        exit(1);
+        log_error("Failed to receive response: %s", strerror(errno));
+        return -1;
     }
-    log_debug("Buffer was succesfully received: '%s'", buffer);
+    log_debug("Buffer has been received: '%s'", buffer);
 
     return 0;
 }
@@ -84,7 +88,7 @@ int main(int argc, char **argv)
     struct response response;
 
     // Solid logging
-    log_set(LOG_DEBUG, 1);
+    log_set(LOG_LEVEL, LOG_PREFIX);
 
     if (argc < 3) {
         log_error("Usage: %s <method> <ip>", argv[0]);
@@ -104,8 +108,11 @@ int main(int argc, char **argv)
     }
 
     // Communicate with the server
-    sock = setup(HOST, PORT);
-    communicate(sock, buffer, sizeof(buffer));
+    if ((sock = setup(HOST, PORT)) < 0)
+        return 1;
+    if (communicate(sock, buffer, sizeof(buffer)) < 0)
+        return 1;
+
     teardown(sock);
 
     // Parse response

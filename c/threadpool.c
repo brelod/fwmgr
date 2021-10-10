@@ -5,8 +5,9 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "threadpool.h"
 #include "queue.h"
+#include "logging.h"
+#include "threadpool.h"
 
 
 tp_worker_t* tp_find_worker(tp_t *tp)                   // TODO: this should be static
@@ -33,15 +34,15 @@ void* tp_manager_run(void *arg)
                 pthread_exit(0);
 
             if (pthread_mutex_lock(&self->job_mutex) != 0) {
-                printf("Failed lock mutex\n");
+                log_error("Failed lock mutex");
                 exit(1);
             }
             if (pthread_cond_wait(&self->job_ready, &self->job_mutex) != 0) {
-                printf("Failed to wait for condition\n");
+                log_error("Failed to wait for condition");
                 exit(1);
             }
             if (pthread_mutex_unlock(&self->job_mutex) != 0) {
-                printf("Failed to unlock mutex");
+                log_error("Failed to unlock mutex");
                 exit(1);
             }
         }
@@ -52,15 +53,15 @@ void* tp_manager_run(void *arg)
                 pthread_exit(0);
 
             if (pthread_mutex_lock(&self->th_mutex) != 0) {
-                printf("Failed lock mutex\n");
+                log_error("Failed lock mutex");
                 exit(1);
             }
             if (pthread_cond_wait(&self->th_ready, &self->th_mutex) != 0) {
-                printf("Failed to wait for condition\n");
+                log_error("Failed to wait for condition");
                 exit(1);
             }
             if (pthread_mutex_unlock(&self->th_mutex) != 0) {
-                printf("Failed to unlock mutex");
+                log_error("Failed to unlock mutex");
                 exit(1);
             }
         }
@@ -80,15 +81,15 @@ void* tp_worker_run(void *arg)
     self->state = TP_RUNNING;
     while (1) {
         if (pthread_mutex_lock(&self->mutex) != 0) {
-            printf("Failed lock mutex\n");
+            log_error("Failed lock mutex");
             exit(1);
         }
         if (pthread_cond_wait(&self->ready, &self->mutex) != 0) {
-            printf("Failed to wait for condition\n");
+            log_error("Failed to wait for condition");
             exit(1);
         }
         if (pthread_mutex_unlock(&self->mutex) != 0) {
-            printf("Failed to unlock mutex");
+            log_error("Failed to unlock mutex");
             exit(1);
         }
 

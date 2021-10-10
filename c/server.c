@@ -16,10 +16,21 @@
 #include "threadpool.h"
 
 
-#define HOST "127.0.0.1"
-#define PORT 5555
-#define THREADS 4
-#define QUEUE_SIZE 256
+#ifndef THREADS
+    #define THREADS 4
+#endif
+
+#ifndef QUEUE_SIZE
+    #define QUEUE_SIZE 256
+#endif
+
+#ifndef HOST
+    #define HOST "127.0.0.1"
+#endif
+
+#ifndef PORT
+    #define PORT 5555
+#endif
 
 
 struct server {
@@ -97,7 +108,7 @@ int operate(struct server *server)
         }
         job = (tp_job_t*) calloc (1, sizeof(tp_job_t));
         if (job < 0) {
-            log_error("Faile to calloc memory for job");
+            log_error("Failed to calloc memory for job");
             return -1;
         }
 
