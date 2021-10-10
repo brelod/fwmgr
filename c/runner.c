@@ -27,7 +27,7 @@ int runner_process(struct request request, struct response *response)
     char *argv[] = {"iptables", "<-A/-D>", "FORWARD", "-s", "<ip>", "-j", "ACCEPT", 0};
 
     // Leave this here for thread-testing purposes
-    //log_error("-------------------------------------- Sleeping in runner_process ------------------------------------------");
+    //log_debug("-------------------------------------- Sleeping in runner_process ------------------------------------------");
     //usleep(100000);
 
     memset(cmd, 0, sizeof(cmd));

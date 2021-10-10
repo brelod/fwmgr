@@ -1,11 +1,11 @@
 #include <string.h>
-#include <errno.h> //It defines macros for reporting and retrieving error conditions through error codes
-#include <unistd.h> //contains various constants
-#include <sys/types.h> //contains a number of basic derived types that should be used whenever appropriate
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
 
-#include <arpa/inet.h> // defines in_addr structure
-#include <sys/socket.h> // for socket creation
-#include <netinet/in.h> //contains constants and structures needed for internet domain addresses
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include <signal.h>
 #include <stdlib.h>

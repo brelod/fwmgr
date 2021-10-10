@@ -32,11 +32,15 @@ gcc -ggdb -Wall -DLOGGING   -c -o queue.o queue.c
 gcc -lpthread  server.o runner.o connection.o threadpool.o queue.o netpack.o logging.o   -o server
 ```
 
+
+
+
+
 # Examples: 
 ## On the server side:
 Keep in mind that to be able to execute the iptables commands you have to run the server side code as a user
-which has the permissions to modify the firewal rules. 
-The code is trying to avoid generating to much logs, so by default it only shows the server setup / teardown and the 
+which has the permissions to modify the firewall rules. 
+The code is trying to avoid generating too much logs, so by default it only shows the server setup / teardown and the 
 executed iptables commands. To be more verbose you should enable the debug mode as you can see below.
 
 ```
@@ -131,3 +135,49 @@ user@host:~/fwmgr/c$ ./client remove 1.2.3.4
 iptables: Bad rule (does a matching rule exist in that chain?).
 ```
 
+
+# Ideas to improve:
+- Make the host, port configurable from cli (server and client too)
+- Make the logging verbosity / prefix configurable from the cli
+- Make the threads / queue size dynamically changing based on the load and capabilities of the server
+- Define error codes as a common lib for client and server
+- Do not dump command output directly to the client --> rewrite the most important things on the server
+and show the original message only in the server logs.
+- Unittests
+- Implement Popen() - like in Python which you can use to obtain 3 fd and communicate with the subprocess
+
+## Based on review:
+### General:
+- Use c99 standard: (gcc -std=c99)
+- Generate header dependencies with gcc (find out how) - https://makefiletutorial.com/#makefile-cookbook
+- #pragma once instead of current header guard
+- ggc options: -MT <target> -MMD -MP
+- Use aligned variable on the stack (32/64bit)
+- Use more types instead of struct....
+- hex: align to byte and use capitals (eg: 0x0F)
+- Learn about restrict c99
+- Use const pointers (eg in netpack) if the data can not be passed via a register (eg: big struct)
+
+### Queue:
+- queue_create() -- allocate memory in 1 shot.
+- simplify return of isempty(), isfull()
+- use static inline functions isempty() isfull() peek()
+
+### Threadpool:
+- Pin the workers to specific CPUs
+
+### Logging:
+- log_level_names --> const
+- macro indentation
+- prefix string configuration -- eg: don't include thread name
+- log_set() -- should be atomic (https://en.cppreference.com/w/c/atomic)
+
+### Connections:
+- con_handler() -- naming should be improved
+
+### Runner:
+- runner_process() -- naming should be improved
+- cmd concatenation - strcat has re-read the whole string over and over again
+
+### Server:
+- operate() -- queue overflow -- timeout macro
