@@ -12,11 +12,10 @@ iptables -D FORWARD -s 1.2.3.4 -j ACCEPT    # client.py remove 1.2.3.4
 The code has only been tested on Linux gentoo 5.4.38-gentoo-x86_64 so far.
 
 
-# Examples: 
-## Compile the code:
+# Compile the code:
 Checkout the Makefile for setting variables like:
 - THREADS - number of threads to use in the threadpool.
-- QUEUE_SIZE - number of jobs which the threadpool is able to handle without stop answering new requests.
+- QUEUE_SIZE - number of jobs which the threadpool is able to handle without refusing to answer new requests.
 
 To compile the client and the server too use:
 ```
@@ -33,6 +32,7 @@ gcc -ggdb -Wall -DLOGGING   -c -o queue.o queue.c
 gcc -lpthread  server.o runner.o connection.o threadpool.o queue.o netpack.o logging.o   -o server
 ```
 
+# Examples: 
 ## On the server side:
 Keep in mind that to be able to execute the iptables commands you have to run the server side code as a user
 which has the permissions to modify the firewal rules. 
