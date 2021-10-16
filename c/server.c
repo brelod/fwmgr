@@ -32,11 +32,14 @@
 #       define PORT 5555
 #endif
 
+#define QUEUE_WAIT 10000
+
 
 struct server {
-    tp_t *tp;
-    int socket;
-    struct sockaddr_in addr;
+        tp_t *tp;
+        int socket;
+        struct sockaddr_in addr;
+        session_t *sessions;
 };
 
 
@@ -44,98 +47,108 @@ static struct server server;
 
 int setup(const char *ip, unsigned short port)
 {
-    int sock;
-    struct sockaddr_in addr;
+        int sock;
+        struct sockaddr_in addr;
+        tp_job_t *job;
 
-    log_info("Starting server on %s:%d", ip, port);
+        log_info("Starting server on %s:%d", ip, port);
 
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        addr.sin_port = htons(port);
 
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        log_error("Failed to create socket: %s", strerror(errno));
-        return -1;
-    }
+        if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+                log_error("Failed to create socket: %s", strerror(errno));
+                return -1;
+        }
 
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
-        log_error("Failed to set socket option (SO_REUSEADDR): %s", strerror(errno));
-        return -1;
-    }
+        if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0) {
+                log_error("Failed to set socket option (SO_REUSEADDR): %s", strerror(errno));
+                return -1;
+        }
 
-    if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        log_error("Failed to bind socket: %s", strerror(errno));
-        return -1;
-    }
+        if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+                log_error("Failed to bind socket: %s", strerror(errno));
+                return -1;
+        }
 
-    if (listen(sock, 5) < 0) {
-        log_error("Failed to listen on socket: %s", strerror(errno));
-        return -1;
-    }
+        if (listen(sock, 5) < 0) {
+                log_error("Failed to listen on socket: %s", strerror(errno));
+                return -1;
+        }
 
-    server.socket = sock;
-    server.addr = addr;
-    server.tp = tp_create(THREADS, QUEUE_SIZE);
+        server.socket = sock;
+        server.addr = addr;
+        server.tp = tp_create(THREADS, QUEUE_SIZE);
 
-    if (server.tp == NULL) {
-        return -1;
-    }
+        if (server.tp == NULL) {
+                log_error("Failed to create threadpool");
+                return -1;
+        }
 
-    tp_start(server.tp);
+        // Init queue with connection objects
+        server.sessions = (session_t*) calloc (QUEUE_SIZE, sizeof(*server.sessions));
+        if (server.sessions == NULL) {
+                log_error("Failed to calloc() sessions");
+                return -1;
+        }
 
-    log_info("Server has started");
-    return 0;
+        for (int i=0; i<QUEUE_SIZE; ++i) {
+                job = (tp_job_t*) server.tp->jobs.finished->nodes[i];
+                job->function = con_handler;
+                job->arg = (void*) &server.sessions[i];
+        }
+
+        tp_start(server.tp);
+
+        log_info("Server has started");
+        return 0;
 }
 
 int operate()
 {
-    tp_job_t *job = NULL;
-    struct sockaddr_in addr;
-    struct connection *con = NULL;
-    socklen_t size = sizeof(addr);
+        tp_job_t *job = NULL;
+        struct sockaddr_in addr;
+        session_t *session = NULL;
+        socklen_t size = sizeof(addr);
 
-    log_info("Start listening");
-    while (1) {
-        con = (struct connection*) calloc (1, sizeof(*con));
-        if (con < 0) {
-            log_error("Failed to calloc memory for connection");
-            return -1;
-        }
-        job = (tp_job_t*) calloc (1, sizeof(*job));
-        if (job < 0) {
-            log_error("Failed to calloc memory for job");
-            return -1;
-        }
+        log_info("Start listening");
+        while (1) {
+                // Find a session to overwrite
+                while ((job = tp_get(server.tp)) == NULL) {
+                        log_warning("No free job is available");
+                        usleep(QUEUE_WAIT);
+                }
+                session = (session_t*) job->arg;
+                
+                // Update the session
+                session->socket = accept(server.socket, (struct sockaddr*)&addr, &size);
+                if (session->socket < 0) {
+                        log_error("Failed to accept connection: %s", strerror(errno));
+                        return -1;
+                }
 
-        // Setup connection
-        con->socket = accept(server.socket, (struct sockaddr*)&addr, &size);
-        if (con->socket < 0) {
-            log_error("Failed to accept connection: %s", strerror(errno));
-            return -1;
-        }
+                if (inet_ntop(AF_INET, &addr.sin_addr, session->ip, sizeof(session->ip)) == NULL) {
+                        log_warning("Failed to parse ip address: %s", strerror(errno));
+                        return -1;
+                }
+                session->port = htons(addr.sin_port);
 
-        if (inet_ntop(AF_INET, &addr.sin_addr, con->ip, sizeof(con->ip)) == NULL) {
-            log_warning("Failed to parse ip address: %s", strerror(errno));
-            return -1;
+                // Start the job with the session
+                while(tp_put(server.tp, job) < 0) {
+                        log_warning("Job queue overflow");
+                        usleep(QUEUE_WAIT);
+                }
         }
-        con->port = htons(addr.sin_port);
-
-        // Setup and start job
-        job->function = con_handler;
-        job->arg = (void*)con;
-        while(tp_exec(server.tp, job) < 0) {
-            log_warning("Job queue overflow - Waiting for queue to be free....");
-            usleep(10000);
-        }
-    }
-    log_info("Stop listening");
-    return 0;
+        log_info("Stop listening");
+        return 0;
 }
 
 int teardown()
 {
     log_info("Stopping server");
     close(server.socket);
+    free(server.sessions);
     tp_stop(server.tp);
     tp_destroy(server.tp);
     log_info("Server is stopped");

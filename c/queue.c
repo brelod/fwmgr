@@ -45,8 +45,10 @@ queue_t* queue_create(int size)
 int queue_put(queue_t *q, void *data)
 {
         pthread_mutex_lock(&q->lock);
-        if (_isfull(q))
+        if (_isfull(q)) {
+                pthread_mutex_unlock(&q->lock);
                 return -1;
+        }
 
         q->nodes[q->tail] = data;
         q->tail  = _next(q, q->tail);
@@ -60,8 +62,10 @@ void* queue_get(queue_t *q)
         void *data;
 
         pthread_mutex_lock(&q->lock);
-        if (_isempty(q))
+        if (_isempty(q)) {
+                pthread_mutex_unlock(&q->lock);
                 return NULL;
+        }
 
         data = q->nodes[q->head];
         q->nodes[q->head] = NULL;

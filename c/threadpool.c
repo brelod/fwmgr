@@ -10,12 +10,81 @@
 #include "threadpool.h"
 
 
-static tp_worker_t* find_worker(tp_t *tp);
-static void* start_manager(void *arg);
-static void* start_worker(void *arg);
+static void* _start_manager(void *arg);
+static void* _start_worker(void *arg);
+static tp_worker_t* _find_worker(tp_t *tp);
+static void _wait_for_condition(pthread_mutex_t *lock, pthread_cond_t *ready);
+static inline tp_job_t* _get_pending(tp_t *tp);
+static inline int _put_finished(tp_t *tp, tp_job_t *job);
 
 
-static tp_worker_t* find_worker(tp_t *tp)
+// =============================================================================
+// Private methods:
+// =============================================================================
+static void* _start_manager(void *arg)
+{
+        tp_t *tp = (tp_t*) arg;
+        tp_job_t *job = NULL;
+        tp_worker_t *worker = NULL;
+        tp_manager_t *self = tp->manager;
+
+        log_debug("Threadpool manager was started");
+
+        self->state = TP_RUNNING;
+        while (1) {
+                // Wait for job
+                while ((job = _get_pending(tp)) == NULL) {
+                        if (self->state == TP_STOPPED)
+                                goto stop_manager;
+                        _wait_for_condition(&self->job_lock, &self->job_ready);
+                }
+
+                // Wait for worker
+                while ((worker = _find_worker(tp)) == NULL) {
+                        if (self->state == TP_STOPPED)
+                                goto stop_manager;
+                        _wait_for_condition(&self->worker_lock, &self->worker_ready);
+                }
+
+                if (self->state == TP_STOPPED)
+                        goto stop_manager;
+
+                worker->job = job;
+                pthread_cond_signal(&worker->ready);
+        }
+
+stop_manager:
+        log_debug("Threadpool manager was stopped");
+        log_trace();
+        pthread_exit(0);
+
+}
+
+static void* _start_worker(void *arg)
+{
+        tp_worker_t *self = (tp_worker_t*) arg;
+
+        log_debug("Worker thread was started");
+
+        self->state = TP_RUNNING;
+        while (1) {
+                _wait_for_condition(&self->lock, &self->ready);
+
+                if (self->state != TP_RUNNING) {
+                        log_debug("Worker thread was stopped");
+                        pthread_exit(0);
+                }
+
+                if (self->job != NULL) {
+                    self->job->function(self->job->arg);
+                    _put_finished(self->tp, self->job);
+                    self->job = NULL;
+                    pthread_cond_signal(&self->tp->manager->worker_ready);
+                }
+        }
+}
+
+static tp_worker_t* _find_worker(tp_t *tp)
 {
     for (int i=0; i<tp->size; ++i)
         if (tp->workers[i].state == TP_RUNNING && tp->workers[i].job == NULL)
@@ -24,7 +93,7 @@ static tp_worker_t* find_worker(tp_t *tp)
     return NULL;
 }
 
-static void wait_for_condition(pthread_mutex_t *lock, pthread_cond_t *ready)
+static void _wait_for_condition(pthread_mutex_t *lock, pthread_cond_t *ready)
 {
         if (pthread_mutex_lock(lock) != 0) {
                 log_error("Failed lock mutex");
@@ -43,71 +112,23 @@ static void wait_for_condition(pthread_mutex_t *lock, pthread_cond_t *ready)
         }
 }
 
-static void* start_manager(void *arg)
+static inline tp_job_t* _get_pending(tp_t *tp)
 {
-        tp_job_t *job = NULL;
-        tp_worker_t *worker = NULL;
-        tp_t *tp = (tp_t*) arg;
-        tp_manager_t *self = tp->manager;
-
-        log_debug("Threadpool manager was started");
-
-        self->state = TP_RUNNING;
-        while (1) {
-                // Wait for job
-                while ((job = queue_get(tp->jobs)) == NULL) {
-                        if (self->state == TP_STOPPED)
-                                goto stop_manager;
-                        wait_for_condition(&self->job_mutex, &self->job_ready);
-                }
-
-                // Wait for worker
-                while ((worker = find_worker(tp)) == NULL) {
-                        if (self->state == TP_STOPPED)
-                                goto stop_manager;
-                        wait_for_condition(&self->th_mutex, &self->th_ready);
-                }
-
-                if (self->state == TP_STOPPED)
-                        goto stop_manager;
-
-                worker->job = job;
-                pthread_cond_signal(&worker->ready);
-        }
-
-stop_manager:
-        log_debug("Threadpool manager was stopped");
-        log_trace();
-        pthread_exit(0);
-
+        return (tp_job_t*) queue_get(tp->jobs.pending);
 }
 
-static void* start_worker(void *arg)
+static inline int _put_finished(tp_t *tp, tp_job_t *job)
 {
-        tp_worker_t *self = (tp_worker_t*) arg;
-
-        log_debug("Worker thread was started");
-
-        self->state = TP_RUNNING;
-        while (1) {
-                wait_for_condition(&self->mutex, &self->ready);
-
-                if (self->state != TP_RUNNING) {
-                        log_debug("Worker thread was stopped");
-                        pthread_exit(0);
-                }
-
-                if (self->job != NULL) {
-                    self->job->function(self->job->arg);
-                    self->job = NULL;
-                    pthread_cond_signal(&self->tp->manager->th_ready);
-                }
-        }
+        return queue_put(tp->jobs.finished, (void*)job);
 }
 
+// =============================================================================
+// Pulic methods:
+// =============================================================================
 tp_t* tp_create(int workers, int jobs)
 {
         tp_t *tp = NULL;
+        tp_job_t *job_array = NULL;
 
         log_debug("Creating threadpool with %d workers and job queue "
                         "with size %d", workers, jobs);
@@ -134,14 +155,37 @@ tp_t* tp_create(int workers, int jobs)
                 return NULL;
         }
 
-        tp->jobs = queue_create(jobs);
-        if (tp->jobs == NULL) {
-                log_error("Failed to create job queue for threadpool");
+        tp->jobs.pending = queue_create(jobs);
+        if (tp->jobs.pending == NULL) {
+                log_error("Failed to create pending job queue for threadpool");
                 free(tp->workers);
                 free(tp->manager);
                 free(tp);
                 return NULL;
         }
+
+        tp->jobs.finished = queue_create(jobs);
+        if (tp->jobs.pending == NULL) {
+                log_error("Failed to create finished job queue for threadpool");
+                free(tp->jobs.pending);
+                free(tp->workers);
+                free(tp->manager);
+                free(tp);
+                return NULL;
+        }
+
+        job_array = (tp_job_t*) calloc (jobs, sizeof(*job_array));
+        if (job_array == NULL) {
+                log_error("Failed to create jobs for threadpool");
+                free(tp->jobs.pending);
+                free(tp->jobs.finished);
+                free(tp->workers);
+                free(tp->manager);
+                free(tp);
+                return NULL;
+        }
+        for (int i=0; i<jobs; ++i)
+                _put_finished(tp, &job_array[i]);
 
         log_debug("Threadpool has been created");
         return tp;
@@ -154,18 +198,18 @@ int tp_start(tp_t *tp)
     log_debug("Starting threadpool");
 
     // Init thread conditional / mutex
-    if (pthread_mutex_init(&tp->manager->th_mutex, NULL) != 0) {
-        log_error("Failed to init manager th_mutex");
+    if (pthread_mutex_init(&tp->manager->worker_lock, NULL) != 0) {
+        log_error("Failed to init manager worker_lock");
         return -1;
     }
-    if (pthread_cond_init(&tp->manager->th_ready, NULL) != 0) {
-        log_error("Failed to init manager th_ready");
+    if (pthread_cond_init(&tp->manager->worker_ready, NULL) != 0) {
+        log_error("Failed to init manager worker_ready");
         return -1;
     }
 
     // Init job conditional / mutex
-    if (pthread_mutex_init(&tp->manager->job_mutex, NULL) != 0) {
-        log_error("Failed to init manager job_mutex");
+    if (pthread_mutex_init(&tp->manager->job_lock, NULL) != 0) {
+        log_error("Failed to init manager job_lock");
         return -1;
     }
     if (pthread_cond_init(&tp->manager->job_ready, NULL) != 0) {
@@ -177,8 +221,8 @@ int tp_start(tp_t *tp)
     for (id=0; id<tp->size; ++id) {
         worker = &tp->workers[id];
 
-        if (pthread_mutex_init(&worker->mutex, NULL) != 0) {
-            log_error("Failed to init worker mutex");
+        if (pthread_mutex_init(&worker->lock, NULL) != 0) {
+            log_error("Failed to init worker lock");
             return -1;
         }
 
@@ -187,17 +231,16 @@ int tp_start(tp_t *tp)
             return -1;
         }
 
-        worker->id = id;
         worker->tp = tp;
         worker->state = TP_NONE;
-        if (pthread_create(&worker->thid, NULL, start_worker, worker) != 0) {
+        if (pthread_create(&worker->id, NULL, _start_worker, worker) != 0) {
             log_error("Failed to create worker thread");
             return -1;
         }
     }
 
     tp->manager->state = TP_NONE;
-    if (pthread_create(&tp->manager->thid, NULL, start_manager, tp) != 0) {
+    if (pthread_create(&tp->manager->id, NULL, _start_manager, tp) != 0) {
         log_error("Failed to create manager thread");
         return -1;
     }
@@ -206,16 +249,13 @@ int tp_start(tp_t *tp)
     return 0;
 }
 
-int tp_exec(tp_t *tp, tp_job_t *job)
-{
-    log_debug("Starting job");
-    if (queue_put(tp->jobs, (void*)job) < 0)
-        return -1;
-
-    pthread_cond_signal(&tp->manager->job_ready);
-    log_debug("Job has started");
-    return 0;
+int tp_put(tp_t *tp, tp_job_t *job) { 
+        int rc = queue_put(tp->jobs.pending, job);
+        if (rc == 0)
+                pthread_cond_signal(&tp->manager->job_ready);
+        return rc;
 }
+tp_job_t* tp_get(tp_t *tp) { return (tp_job_t*) queue_get(tp->jobs.finished); }
 
 void tp_stop(tp_t *tp)
 {
@@ -228,8 +268,8 @@ void tp_stop(tp_t *tp)
 
     // Stop manager
     tp->manager->state = TP_STOPPED;
-    pthread_cond_signal(&tp->manager->job_ready);   // Stop waiting for job
-    pthread_cond_signal(&tp->manager->th_ready);    // Stop waiting for worker
+    pthread_cond_signal(&tp->manager->job_ready);       // Stop waiting for job
+    pthread_cond_signal(&tp->manager->worker_ready);    // Stop waiting for worker
     log_debug("Threadpool has stopped");
     sleep(1);
 }
@@ -237,7 +277,8 @@ void tp_stop(tp_t *tp)
 void tp_destroy(tp_t *tp)
 {
     log_debug("Destroying threadpool");
-    queue_destroy(tp->jobs);
+    queue_destroy(tp->jobs.pending);
+    queue_destroy(tp->jobs.finished);
     free(tp->workers);
     free(tp->manager);
     free(tp);

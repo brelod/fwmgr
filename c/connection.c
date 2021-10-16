@@ -14,12 +14,12 @@
 #include "netpack.h"
 #include "connection.h"
 
-static void teardown(struct connection *con);
+static void teardown(session_t *session);
 
 
 void con_handler(void *arg)
 {
-    struct connection *con = (struct connection*) arg;
+    session_t *session = (session_t*) arg;
     struct timeval timeout = {5, 0};
 
     struct request request;
@@ -30,13 +30,13 @@ void con_handler(void *arg)
     memset(&request, 0, sizeof(struct request));
     memset(&response, 0, sizeof(struct response));
 
-    log_debug("Connection from %s:%d", con->ip, con->port);
+    log_debug("Connection from %s:%d", session->ip, session->port);
 
     // Receive request
-    setsockopt(con->socket, SOL_SOCKET, SO_RCVTIMEO, (struct timeval*) &timeout, sizeof(timeout));
-    if (recv(con->socket, buffer, sizeof(buffer)-1, 0) < 0) {
+    setsockopt(session->socket, SOL_SOCKET, SO_RCVTIMEO, (struct timeval*) &timeout, sizeof(timeout));
+    if (recv(session->socket, buffer, sizeof(buffer)-1, 0) < 0) {
         log_error("Failed to receive request: %s", strerror(errno));
-        teardown(con);
+        teardown(session);
         return;
     }
 
@@ -56,16 +56,15 @@ void con_handler(void *arg)
     log_debug("Response: '%s'", buffer);
 
     // Send response
-    if (send(con->socket, buffer, strlen(buffer), 0) < 0) {
+    if (send(session->socket, buffer, strlen(buffer), 0) < 0) {
         log_error("Failed to send response: %s", strerror(errno));
     }
 
-    teardown(con);
+    teardown(session);
 }
 
-static void teardown(struct connection *con)
+static void teardown(session_t *session)
 {
-    log_debug("Close connection to %s:%d", con->ip, con->port);
-    close(con->socket);
-    free(con);
+    log_debug("Close connection to %s:%d", session->ip, session->port);
+    close(session->socket);
 }

@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     struct response response;
 
     // Solid logging
-    log_set(LOG_LEVEL, LOG_PREFIX);
+    log_set(LOG_LEVEL, log_std_prefix);
 
     if (argc < 3) {
         log_error("Usage: %s <method> <ip>", argv[0]);

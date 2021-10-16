@@ -6,11 +6,11 @@
 #include <netinet/in.h>
 
 
-struct connection {
+typedef struct session {
     int socket;
     char ip[40];
     unsigned short port;
-};
+} session_t;
 
 
 void con_handler(void *arg);
