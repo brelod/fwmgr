@@ -1,24 +1,38 @@
-#ifndef LOGGING_H
-#define LOGGING_H
+#pragma once
 
-enum log_level {LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR};
+#include <stddef.h>
 
-void log_set(enum log_level level, int prefix);
-void _log_debug(const char *fmt, ...);
-void _log_info(const char *fmt, ...);
-void _log_warning(const char *fmt, ...);
-void _log_error(const char *fmt, ...);
+enum log_level {
+        LOG_DEBUG, 
+        LOG_INFO, 
+        LOG_WARNING, 
+        LOG_ERROR, 
+        LOG_TRACE
+};
 
-#if defined LOGGING
-    #define log_debug(...) _log_debug(__VA_ARGS__)
-    #define log_info(...) _log_info(__VA_ARGS__)
-    #define log_warning(...) _log_warning(__VA_ARGS__)
-    #define log_error(...) _log_error(__VA_ARGS__)
+static char *log_level_names[] = {
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "TRACE",
+};
+
+int no_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size);
+int std_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size);
+
+void log_set(enum log_level level, int (*prefix)(enum log_level level, const char *file, int line, char *fmt, size_t size));
+
+#if defined LOG_ENABLE
+        #define log_debug(...)   _log(LOG_DEBUG  , __FILE__, __LINE__, __VA_ARGS__)
+        #define log_info(...)    _log(LOG_INFO   , __FILE__, __LINE__, __VA_ARGS__)
+        #define log_warning(...) _log(LOG_WARNING, __FILE__, __LINE__, __VA_ARGS__)
+        #define log_error(...)   _log(LOG_ERROR  , __FILE__, __LINE__, __VA_ARGS__)
+        #define log_trace()      _log_trace(__FILE__, __LINE__)
 #else
-    #define log_debug(...)
-    #define log_info(...)
-    #define log_warning(...)
-    #define log_error(...)
-#endif
-
+        #define log_debug(...)
+        #define log_info(...)
+        #define log_warning(...)
+        #define log_error(...)
+        #define log_trace()
 #endif

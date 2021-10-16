@@ -1,5 +1,4 @@
-#ifndef NETPACK_H
-#define NETPACK_H
+#pragma once
 
 typedef unsigned char uint8_t;
 
@@ -21,5 +20,3 @@ int parse_request(const char *text, struct request *request);
 int parse_response(const char *text, struct response *response);
 int compose_request(char *text, struct request request, size_t size);
 int compose_response(char *text, struct response response, size_t size);
-
-#endif

@@ -1,9 +1,6 @@
-#ifndef RUNNER_H
-#define RUNNER_H
+#pragma once
 
 #include "netpack.h"
 
 
 int runner_process(struct request request, struct response *response);
-
-#endif

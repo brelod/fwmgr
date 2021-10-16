@@ -1,5 +1,4 @@
-#ifndef THREADPOOL_H
-#define THREADPOOL_H
+#pragma once
 
 #include <stdbool.h>
 #include "queue.h"
@@ -50,5 +49,3 @@ int tp_start(tp_t *tp);
 int tp_exec(tp_t *tp, tp_job_t *job);
 void tp_stop(tp_t *tp);
 void tp_destroy(tp_t *tp);
-
-#endif

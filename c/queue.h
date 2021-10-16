@@ -1,5 +1,4 @@
-#ifndef QUEUE_H
-#define QUEUE_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -23,5 +22,3 @@ bool queue_isempty(queue_t *q);
 int queue_put(queue_t *q, void *data);
 void* queue_get(queue_t *q);
 void* queue_peek(queue_t *q);
-
-#endif

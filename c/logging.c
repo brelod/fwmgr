@@ -3,80 +3,76 @@
 #include <stdarg.h>
 #include <string.h>
 #include <pthread.h>
+#include <execinfo.h>
+
+#define LOG_ENABLE
 
 #include "logging.h"
 
+#define LOG_PREFIX_SIZE 1024
+#define LOG_BACKTRACE_SIZE 1024
 
-static char *log_level_names[] = {
-    "DEBUG",
-    "INFO",
-    "WARNING",
-    "ERROR",
-};
 
-struct config {
-    enum log_level level;
-    int prefix;
-};
+typedef struct {
+        enum log_level level;
+        int (*prefix)(enum log_level level, const char *file, int line, char *fmt, size_t size);
+} config_t;
 
-static struct config config = {LOG_INFO, 1};
+static config_t config = {LOG_INFO, std_prefix};
 
-void _log(enum log_level level, const char *fmt, va_list args)
+
+int no_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
 {
-    char format[1024];
-    char timestamp[20];
-    time_t t = time(NULL); 
+        return 0;
+}
 
-    memset(format, 0, sizeof(format));
-    memset(timestamp, 0, sizeof(timestamp));
+int std_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
+{
+        char timestamp[20];
+        time_t t = time(NULL); 
 
-    if (level >= config.level) {
-        if (config.prefix) {
-            strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&t));
-            snprintf(format, sizeof(format), "%s | Thread-%lu | %7s | %s\n", timestamp, pthread_self(), log_level_names[level], fmt);
+        memset(timestamp, 0, sizeof(timestamp));
 
-        } else {
-            snprintf(format, sizeof(format), "%s\n", fmt);
+        strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&t));
+        return snprintf(fmt, size, "%s | %7s | %s:%d | ", 
+                        timestamp, log_level_names[level], file, line);
+}
+
+void log_set(enum log_level level, int (*prefix)(
+        enum log_level level, const char *file, int line, char *fmt, size_t size))
+{
+        config.level = level;
+        config.prefix = prefix;
+}
+
+void _log(enum log_level level, const char *file, int line, const char *fmt, ...)
+{
+        va_list args;
+        char prefix[LOG_PREFIX_SIZE];
+        char format[LOG_PREFIX_SIZE+3];
+        memset(prefix, 0, sizeof(prefix));
+        memset(format, 0, sizeof(format));
+
+        if (level >= config.level) {
+                config.prefix(level, file, line, prefix, LOG_PREFIX_SIZE - 3);
+                snprintf(format, LOG_PREFIX_SIZE, "%s%s\n", prefix, fmt);
+
+                va_start(args, fmt);
+                vprintf(format, args);
+                va_end(args);
         }
-
-        vprintf(format, args);
-    }
 }
 
-void log_set(enum log_level level, int prefix)
+void _log_trace(const char *file, int line)
 {
-    config.level = level;
-    config.prefix = prefix;
-}
+        int sframes;
+        void *bt[LOG_BACKTRACE_SIZE];
+        char **lines;
 
-void _log_debug(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    _log(LOG_DEBUG, fmt, args);
-    va_end(args);
-}
+        sframes = backtrace(bt, LOG_BACKTRACE_SIZE);
+        lines = backtrace_symbols(bt, sframes);
 
-void _log_info(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    _log(LOG_INFO, fmt, args);
-    va_end(args);
-}
-
-void _log_warning(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    _log(LOG_WARNING, fmt, args);
-    va_end(args);
-}
-
-void _log_error(const char *fmt, ...)
-{
-    va_list args;
-    va_start(args, fmt);
-    _log(LOG_ERROR, fmt, args);
-    va_end(args);
+        for (int i=0; i<sframes; ++i) {
+                _log(LOG_TRACE, file, line, "%s", lines[i]);
+        }
 }

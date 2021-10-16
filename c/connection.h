@@ -1,6 +1,4 @@
-#ifndef CONNECTION_H
-#define CONNECTION_H
-
+#pragma once
 
 #include <sys/types.h>
 #include <arpa/inet.h>
@@ -16,5 +14,3 @@ struct connection {
 
 
 void con_handler(void *arg);
-#endif
-
