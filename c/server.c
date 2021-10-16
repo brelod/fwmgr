@@ -17,19 +17,19 @@
 
 
 #ifndef THREADS
-    #define THREADS 4
+#       define THREADS 4
 #endif
 
 #ifndef QUEUE_SIZE
-    #define QUEUE_SIZE 256
+#       define QUEUE_SIZE 256
 #endif
 
 #ifndef HOST
-    #define HOST "127.0.0.1"
+#       define HOST "127.0.0.1"
 #endif
 
 #ifndef PORT
-    #define PORT 5555
+#       define PORT 5555
 #endif
 
 

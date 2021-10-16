@@ -77,6 +77,7 @@ static void* start_manager(void *arg)
 
 stop_manager:
         log_debug("Threadpool manager was stopped");
+        log_trace();
         pthread_exit(0);
 
 }
@@ -230,6 +231,7 @@ void tp_stop(tp_t *tp)
     pthread_cond_signal(&tp->manager->job_ready);   // Stop waiting for job
     pthread_cond_signal(&tp->manager->th_ready);    // Stop waiting for worker
     log_debug("Threadpool has stopped");
+    sleep(1);
 }
 
 void tp_destroy(tp_t *tp)
