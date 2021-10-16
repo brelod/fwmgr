@@ -10,7 +10,7 @@ QUEUE_SIZE = 256
 LOGGING += netpack.o
 LOGGING += client.o
 LOGGING += server.o runner.o connection.o threadpool.o queue.o
-$(LOGGING): CFLAGS += -DLOGGING
+$(LOGGING): CFLAGS += -DLOG_ENABLE
 
 CLIENT = client
 SERVER = server

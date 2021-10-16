@@ -18,24 +18,31 @@ typedef struct {
         int (*prefix)(enum log_level level, const char *file, int line, char *fmt, size_t size);
 } config_t;
 
-static config_t config = {LOG_INFO, std_prefix};
+static config_t config = {LOG_INFO, log_std_prefix};
 
+const char *log_level_names[] = {
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "TRACE",
+};
 
-int no_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
+int log_no_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
 {
         return 0;
 }
 
-int std_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
+int log_std_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
 {
         char timestamp[20];
+        char location[512];
         time_t t = time(NULL); 
 
-        memset(timestamp, 0, sizeof(timestamp));
-
         strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", localtime(&t));
-        return snprintf(fmt, size, "%s | %7s | %s:%d | ", 
-                        timestamp, log_level_names[level], file, line);
+        snprintf(location, 512, "%s:%d", file, line);
+        return snprintf(fmt, size, "%s | %7s | %-20s | ", 
+                        timestamp, log_level_names[level], location);
 }
 
 void log_set(enum log_level level, int (*prefix)(
@@ -45,17 +52,17 @@ void log_set(enum log_level level, int (*prefix)(
         config.prefix = prefix;
 }
 
-void _log(enum log_level level, const char *file, int line, const char *fmt, ...)
+void log_write(enum log_level level, const char *file, int line, const char *fmt, ...)
 {
         va_list args;
         char prefix[LOG_PREFIX_SIZE];
-        char format[LOG_PREFIX_SIZE+3];
+        char format[LOG_PREFIX_SIZE+1];
         memset(prefix, 0, sizeof(prefix));
         memset(format, 0, sizeof(format));
 
         if (level >= config.level) {
-                config.prefix(level, file, line, prefix, LOG_PREFIX_SIZE - 3);
-                snprintf(format, LOG_PREFIX_SIZE, "%s%s\n", prefix, fmt);
+                config.prefix(level, file, line, prefix, LOG_PREFIX_SIZE);
+                snprintf(format, LOG_PREFIX_SIZE+1, "%s%s\n", prefix, fmt);
 
                 va_start(args, fmt);
                 vprintf(format, args);
@@ -73,6 +80,6 @@ void _log_trace(const char *file, int line)
         lines = backtrace_symbols(bt, sframes);
 
         for (int i=0; i<sframes; ++i) {
-                _log(LOG_TRACE, file, line, "%s", lines[i]);
+                log_write(LOG_TRACE, file, line, "%s", lines[i]);
         }
 }

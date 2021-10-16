@@ -150,26 +150,20 @@ and show the original message only in the server logs.
 ### General:
 - Use c99 standard: (gcc -std=c99)
 - Generate header dependencies with gcc (find out how) - https://makefiletutorial.com/#makefile-cookbook
-- #pragma once instead of current header guard
 - ggc options: -MT <target> -MMD -MP
 - Use aligned variable on the stack (32/64bit)
 - Use more types instead of struct....
 - hex: align to byte and use capitals (eg: 0x0F)
 - Learn about restrict c99
 - Use const pointers (eg in netpack) if the data can not be passed via a register (eg: big struct)
+- gcc __sync_* functions
+- spinlock implement
 
-### Queue:
-- queue_create() -- allocate memory in 1 shot.
-- simplify return of isempty(), isfull()
-- use static inline functions isempty() isfull() peek()
 
 ### Threadpool:
 - Pin the workers to specific CPUs
 
 ### Logging:
-- log_level_names --> const
-- macro indentation
-- prefix string configuration -- eg: don't include thread name
 - log_set() -- should be atomic (https://en.cppreference.com/w/c/atomic)
 
 ### Connections:

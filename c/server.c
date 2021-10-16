@@ -154,9 +154,9 @@ void interrupt_handler(int sig)
 int main(int argc, char **argv)
 {
     if (argc > 1 && (strcmp(argv[1], "-d") == 0 || strcmp(argv[1], "--debug") == 0))
-        log_set(LOG_DEBUG, 1);
+        log_set(LOG_DEBUG, log_std_prefix);
     else
-        log_set(LOG_INFO, 1);
+        log_set(LOG_INFO, log_std_prefix);
 
 
     signal(SIGINT, interrupt_handler);
