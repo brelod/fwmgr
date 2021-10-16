@@ -16,6 +16,8 @@ int log_std_prefix(enum log_level level, const char *file, int line, char *fmt, 
 void log_set(enum log_level level, int (*prefix)(enum log_level level, const char *file, int line, char *fmt, size_t size));
 void log_write(enum log_level level, const char *file, int line, const char *fmt, ...);
 
+void _log_trace(const char *file, int line);
+
 #if defined LOG_ENABLE
 #       define log_debug(...)   log_write(LOG_DEBUG  , __FILE__, __LINE__, __VA_ARGS__)
 #       define log_info(...)    log_write(LOG_INFO   , __FILE__, __LINE__, __VA_ARGS__)

@@ -3,8 +3,6 @@
 #include <stdbool.h>
 #include <pthread.h>
 
-#define LOG_ENABLE
-
 #include "queue.h"
 #include "logging.h"
 
@@ -46,14 +44,14 @@ queue_t* queue_create(int size)
 
 int queue_put(queue_t *q, void *data)
 {
-        pthread_mutex_lock(q->lock);
+        pthread_mutex_lock(&q->lock);
         if (_isfull(q))
                 return -1;
 
         q->nodes[q->tail] = data;
         q->tail  = _next(q, q->tail);
 
-        pthread_mutex_unlock(q->lock);
+        pthread_mutex_unlock(&q->lock);
         return 0;
 }
 
@@ -61,7 +59,7 @@ void* queue_get(queue_t *q)
 {
         void *data;
 
-        pthread_mutex_lock(q->lock);
+        pthread_mutex_lock(&q->lock);
         if (_isempty(q))
                 return NULL;
 
@@ -69,7 +67,7 @@ void* queue_get(queue_t *q)
         q->nodes[q->head] = NULL;
         q->head = _next(q, q->head);
 
-        pthread_mutex_unlock(q->lock);
+        pthread_mutex_unlock(&q->lock);
         return data;
 }
 

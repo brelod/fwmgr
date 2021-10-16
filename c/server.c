@@ -161,6 +161,11 @@ int main(int argc, char **argv)
 
     signal(SIGINT, interrupt_handler);
 
+        log_debug("debug");
+        log_info("debug");
+        log_warning("debug");
+        log_error("debug");
+        log_trace();
 
     if (setup(HOST, PORT) < 0)
         return 1;

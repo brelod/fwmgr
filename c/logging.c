@@ -8,6 +8,7 @@
 #define LOG_ENABLE
 
 #include "logging.h"
+#include "color.h"
 
 #define LOG_PREFIX_SIZE 1024
 #define LOG_BACKTRACE_SIZE 1024
@@ -26,6 +27,14 @@ const char *log_level_names[] = {
         "WARNING",
         "ERROR",
         "TRACE",
+};
+
+const char *log_level_colors[] = {
+        CFG_GRAY,
+        CFG_NORMAL,
+        CFG_YELLOW,
+        CFG_RED,
+        CFG_BLUE,
 };
 
 int log_no_prefix(enum log_level level, const char *file, int line, char *fmt, size_t size)
@@ -56,13 +65,19 @@ void log_write(enum log_level level, const char *file, int line, const char *fmt
 {
         va_list args;
         char prefix[LOG_PREFIX_SIZE];
-        char format[LOG_PREFIX_SIZE+1];
+        char format[LOG_PREFIX_SIZE+10];
         memset(prefix, 0, sizeof(prefix));
         memset(format, 0, sizeof(format));
 
         if (level >= config.level) {
                 config.prefix(level, file, line, prefix, LOG_PREFIX_SIZE);
-                snprintf(format, LOG_PREFIX_SIZE+1, "%s%s\n", prefix, fmt);
+
+#ifndef NO_COLOR
+                snprintf(format, LOG_PREFIX_SIZE+10, "%s%s%s\n%s", 
+                        log_level_colors[level], prefix, fmt, CRESET);
+#else
+                snprintf(format, LOG_PREFIX_SIZE+10, "%s%s\n", prefix, fmt);
+#endif
 
                 va_start(args, fmt);
                 vprintf(format, args);
